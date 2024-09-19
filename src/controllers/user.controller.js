@@ -249,38 +249,92 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password changed successfully"))
 
 })
-9
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  return res
-    .status(200)
-    .json(200, req.user, "Current user fetched successfully")
-})
+  try {
+    // Ensure req.user exists
+    if (!req.user) {
+      return res.status(401).json({
+        statusCode: 401,
+        message: "Unauthorized - No user found",
+      });
+    }
 
+    // Send back user details in a consistent structure
+    return res.status(200).json({
+      statusCode: 200,
+      data: req.user,  // Return the user object
+      message: "Current user fetched successfully",
+    });
+  } catch (error) {
+    // Catch any unexpected errors and handle them
+    return res.status(500).json({
+      statusCode: 500,
+      message: "An error occurred while fetching the current user",
+      error: error.message, // You may choose to log this instead of returning it
+    });
+  }
+});
+// const getCurrentUser = asyncHandler(async (req, res) => {
+//   return res
+//     .status(200)
+//     .json(200, req.user, "Current user fetched successfully")
+// })
+
+
+// const updateAccountDetails = asyncHandler(async (req, res) => {
+//   const { fullName, email } = req.body
+
+//   if (!fullName || !email) {
+//     throw new ApiError(400, "All fields are required")
+//   }
+//  //data base call must be await use 
+//  const user =  await User.findByIdAndUpdate(
+//     req.user?._id,
+//     {
+//       $set: {
+//         fullName,
+//         email,
+//       }
+//     },
+//     { new: true }
+//   ).select("-password")
+
+//   return res
+//     .status(200)
+//     .json(new ApiResponse(200, user, "Account details updated  successfully"))
+
+// })
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { fullName, email, } = req.body
+  const { fullName, email } = req.body;
 
+  // Validate input
   if (!fullName || !email) {
-    throw new ApiError(400, "All fields are required")
+    throw new ApiError(400, "All fields are required");
   }
 
-  User.findByIdAndUpdate(
+  // Update user details
+  const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
         fullName,
-        email: email
+        email
       }
     },
-    { new: true }
-  ).select("-password")
+    { new: true }  // Return the updated user document
+  ).select("-password"); // Exclude password from the result
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, req.user, "Account details updated  successfully"))
+  // Handle the case if user is not found
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found");
+  }
 
-})
+  // Return the updated user
+  return res.status(200).json(new ApiResponse(200, updatedUser, "Account details updated successfully"));
+});
+
 
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
@@ -434,15 +488,15 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "videos",
-        localFields: "watchHistory",
-        foreignFields: "_id",
+        localField: "watchHistory",
+        foreignField: "_id",
         as: "watchHistory",
         pipeline: [
           {
             $lookup: {
               from: "users",
-              localFields: "owner",
-              foreignFields: "_id",
+              localField: "owner",
+              foreignField: "_id",
               as: "owner",
               pipeline: [
                 {
@@ -471,7 +525,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   .status(200)
   .json(
     new ApiResponse(
-      200, 
+      200,
       user[0].watchHistory,
       "watch history fetched successfully"
     )
